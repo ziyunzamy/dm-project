@@ -1,0 +1,153 @@
+---
+title: "Final"
+output: 
+  html_document:
+    toc:  true
+    toc_float:  true
+    code_folding:  show
+---
+
+## Dataset Manipulation 
+
+```{r, message = FALSE, warning = FALSE}
+library(tidyverse)
+library(forcats)
+library(devtools)
+library(ggmap)
+library(gridExtra) 
+
+
+#rm(list=ls())
+
+yutongl1_315_theme <- 
+  theme(plot.title = element_text(hjust = 0.5, size = 13), 
+        text = element_text(family = "Helvetica", face = "bold", 
+                            color = "slategray4"),
+        panel.background = element_rect(fill = "white"), 
+        axis.title=element_blank(),
+        axis.text=element_blank(),
+        axis.ticks=element_blank(), 
+        panel.grid.major = element_line(colour = "white"), 
+        panel.grid.minor = element_line(colour = "white")) 
+
+my_colors <- c("#000000", "#56B4E9", "#E69F00", "#F0E442", "#009E73", "#0072B2", 
+               "#D55E00", "#CC7947")
+
+flights2015 = read.csv('flights2015.csv')
+flights2016 = read.csv('flights2016.csv')
+flights2016_guess = read.csv('flights2016_guess.csv')
+flights2016_visible = read.csv('flights2016_visible.csv')
+
+flights2015_mod = na.omit(flights2015[, -c(1, 6, 31:33, 35:40, 42:50, 52:53, 57:64)])
+airports <- read_csv("https://raw.githubusercontent.com/jpatokal/openflights/master/data/airports.dat", 
+                     col_names = c("ID", "name", "city", "country", 
+                                   "IATA_FAA", "ICAO", "lat", "lon",  
+                                   "altitude", "timezone", "DST"))
+
+
+flights2015_pre = flights2015_mod[, -29]
+
+```
+
+
+## Map
+
+```{r, message = FALSE, warning = FALSE}
+
+us_data <- map_data("state")
+
+dep_by_state <- flights2015_mod %>% 
+  group_by(ORIGIN_STATE_NM) %>% 
+  summarise(count = n(), ontime = sum(DEP_DEL15)) %>%
+  mutate(freq =  ontime / count)
+
+dep_by_state$ORIGIN_STATE_NM <- sapply(dep_by_state$ORIGIN_STATE_NM, tolower)
+
+delay_by_dep_state <- left_join(us_data, dep_by_state, by = c('region' = 'ORIGIN_STATE_NM'))
+
+delay_by_dep_p <- 
+  ggplot(delay_by_dep_state ) +
+  geom_polygon(aes(x = long, y = lat, group = group, fill = freq), 
+               color = "black") +
+  scale_fill_gradient2("Frequency of Delay", low = 'royalblue', mid = 'thistle1',
+                       high = 'orangered', midpoint = 0.2, na.value="lightgrey") +
+  theme_void() +
+  coord_map("polyconic") + 
+  labs(title = "Frequency of Delay by Depature States") + 
+  yutongl1_315_theme
+```
+
+
+```{r, message = FALSE, warning = FALSE}
+
+arrival_by_state <- flights2015_mod %>% 
+  group_by(DEST_STATE_NM) %>% 
+  summarise(count = n(), ontime = sum(DEP_DEL15)) %>%
+  mutate(freq =  ontime / count)
+
+arrival_by_state$DEST_STATE_NM <- sapply(arrival_by_state$DEST_STATE_NM, tolower)
+
+delay_by_arri_state <- left_join(us_data, arrival_by_state, by = c('region' = 'DEST_STATE_NM'))
+
+delay_by_arrival_p <- 
+  ggplot(delay_by_arri_state) +
+  geom_polygon(aes(x = long, y = lat, group = group, fill = freq), 
+               color = "black") +
+  scale_fill_gradient2("Frequency of Delay", low = 'royalblue', mid = 'thistle1',
+                       high = 'orangered', midpoint = 0.2, na.value="lightgrey") +
+  theme_void() +
+  coord_map("polyconic") + 
+  labs(title = "Frequency of Delay by Destination States") + 
+  yutongl1_315_theme
+
+grid.arrange(delay_by_dep_p, delay_by_arrival_p, nrow = 2)
+```
+
+
+```{r, warning = FALSE, message = FALSE}
+dep_by_airport <- flights2015_mod %>% 
+  group_by(ORIGIN) %>%
+  summarise(count = n(), ontime = sum(DEP_DEL15)) %>%
+  mutate(freq =  ontime / count)
+
+delay_by_dep_airport <- left_join(airports, dep_by_airport, 
+                                  by = c('IATA_FAA' = 'ORIGIN'))
+
+                                  
+                                  
+
+map_us <- get_map(location = 'United States', zoom = 4)
+
+mapPoints_dep_airport <- ggmap(map_us) +
+  geom_point(aes(x = lon, y = lat, size = freq), 
+             data = delay_by_dep_airport, alpha = .5, color = my_colors[3]) + 
+  guides(size = guide_legend(title = "Frequency of Delay")) + 
+  labs(title = 'Spacial Distribution of Arriving Flights in U.S') +
+  labs(title = 'Spacial Distribution of Departure Flights in U.S') +
+  yutongl1_315_theme
+```
+
+```{r, warning = FALSE, message = FALSE}
+arr_by_airport <- flights2015_mod %>% 
+  group_by(DEST) %>%
+  summarise(count = n(), ontime = sum(DEP_DEL15)) %>%
+  mutate(freq =  ontime / count)
+
+delay_by_arr_airport <- left_join(airports, arr_by_airport, 
+                                  by = c('IATA_FAA' = 'DEST'))
+
+mapPoints_arr_airport <- ggmap(map_us) +
+  geom_point(aes(x = lon, y = lat, size = freq), 
+             data = delay_by_dep_airport, alpha = .5, color = my_colors[3]) + 
+  scale_size_continuous(range = c(1, 10)) + 
+  guides(size = guide_legend(title = "Frequency of Delay")) + 
+  labs(title = 'Spacial Distribution of Arriving Flights in U.S') +
+  yutongl1_315_theme
+  
+
+grid.arrange(mapPoints_dep_airport, mapPoints_arr_airport, nrow = 2)
+
+```
+
+
+Duration 
