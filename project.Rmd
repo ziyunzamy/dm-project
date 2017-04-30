@@ -47,13 +47,14 @@ delays_by_des_3 <- left_join(delays_by_des_2, delays_by_des,
                  by = c("FL_DATE_2" = "FL_DATE", 
                         "DEST_AIRPORT_ID" = "DEST_AIRPORT_ID"))
 delays_by_des_3 <- mutate(delays_by_des_3, 
-                           delays_2_des = rowSums(cbind(delays_des.x, 
+                           delays_des_2 = rowSums(cbind(delays_des.x, 
                                                         delays_des.y), 
                                                   na.rm=TRUE))
 ### add to data set ###
 flights2015_mod_v2 <- left_join(flights2015_mod_v1, delays_by_des_3, 
                  by = c("FL_DATE" = "FL_DATE", 
                         "DEST_AIRPORT_ID" = "DEST_AIRPORT_ID"))
+### get rid of useless variables ###
 flights2015_mod_v2 <- flights2015_mod_v2[, -c(40:41)]
 ```
 
@@ -105,10 +106,61 @@ flights16_v2 <- left_join(flights16_v1, delays_by_des_16_3,
                  by = c("FL_DATE" = "FL_DATE", 
                         "DEST_AIRPORT_ID" = "DEST_AIRPORT_ID"))
 flights16_v2 <- flights16_v2[, -c(68:69)]
-summary(flights16_v2$delays_2)
-summary(flights16_v2$delays_des_2)
 ```
 
+```{r}
+holidays <- c('2015-01-01', '2015-01-19', '2015-02-14', '2015-02-16',
+              '2015-05-25', '2015-07-04', '2015-09-07',
+              '2015-10-12','2015-11-11','2015-11-26', '2015-12-25')
+holidayDates <- as.Date(holidays)
+DaysToHoliday <- function(month, day){ 
+  # Input a month and day from the flightsDB
+    # Get our year.
+    year <- 2015
+    currDate <- as.Date(paste(year,month,day,sep = '-')) 
+    # Create a DATE object we can use to calculate the time difference
+    numDays <- as.numeric(min(abs(currDate-holidayDates))) 
+    # Now find the minimum difference between the date and our holidays
+    return(numDays)                                        
+    # We can vectorize this to automatically find the minimum closest
+    # holiday by subtracting all holidays at once
+}
+# Get all of the dates through unique Month/Day combinations
+datesOfYear <- unique(flights2015_mod_v2[,3:4]) 
+# Apply our function in a vectorized manner via one of R's many "apply" functions (in this case mapply)
+# to each unique date and save 
+datesOfYear$HDAYS <- mapply(DaysToHoliday, datesOfYear$MONTH, datesOfYear$DAY_OF_MONTH) 
+InputDays <- function(month,day){
+    finalDays <- datesOfYear$HDAYS[datesOfYear$MONTH == month & datesOfYear$DAY_OF_MONTH == day] # Find which row to get
+    return(finalDays)
+}
+flights2015_mod_v2$HDAYS <- mapply(InputDays, 
+                                   flights2015_mod_v2$MONTH, 
+                                   flights2015_mod_v2$DAY_OF_MONTH)
+```
+
+```{r}
+holidays_16 <- c('2016-01-01', '2016-01-18', '2016-02-14', '2016-02-15',
+              '2016-05-30', '2016-07-04', '2016-09-05',
+              '2016-10-10','2016-11-11','2016-11-24', '2016-12-25')
+holidayDates_16 <- as.Date(holidays_16)
+DaysToHoliday_16 <- function(month, day){ 
+    year <- 2016
+    currDate <- as.Date(paste(year,month,day,sep = '-')) 
+    numDays <- as.numeric(min(abs(currDate-holidayDates_16))) 
+    return(numDays)                                        
+}
+datesOfYear_16 <- unique(flights16_v2[,3:4])
+datesOfYear_16$HDAYS <- mapply(DaysToHoliday_16, datesOfYear_16$MONTH,
+                            datesOfYear_16$DAY_OF_MONTH) 
+InputDays_16 <- function(month,day){
+    finalDays <- datesOfYear_16$HDAYS[datesOfYear_16$MONTH == month & datesOfYear_16$DAY_OF_MONTH == day] # Find which row to get
+    return(finalDays)
+}
+flights16_v2$HDAYS <- mapply(InputDays_16, 
+                             flights16_v2$MONTH, 
+                             flights16_v2$DAY_OF_MONTH)
+```
 
 
 ```{r}
