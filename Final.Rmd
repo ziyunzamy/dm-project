@@ -73,7 +73,8 @@ delay_by_dep_p <-
                        high = 'orangered', midpoint = 0.2, na.value="lightgrey") +
   theme_void() +
   coord_map("polyconic") + 
-  labs(title = "Frequency of Delay by Depature States") + 
+  labs(title = "Frequency of Delay by Depature States",
+       subtitle = 'Color Grey means missing data') + 
   yutongl1_315_theme
 ```
 
@@ -97,7 +98,8 @@ delay_by_arrival_p <-
                        high = 'orangered', midpoint = 0.2, na.value="lightgrey") +
   theme_void() +
   coord_map("polyconic") + 
-  labs(title = "Frequency of Delay by Destination States") + 
+  labs(title = "Frequency of Delay by Destination States", 
+       subtitle = 'Color Grey means missing data') + 
   yutongl1_315_theme
 
 grid.arrange(delay_by_dep_p, delay_by_arrival_p, nrow = 2)
@@ -113,17 +115,13 @@ dep_by_airport <- flights2015_mod %>%
 delay_by_dep_airport <- left_join(airports, dep_by_airport, 
                                   by = c('IATA_FAA' = 'ORIGIN'))
 
-                                  
-                                  
-
 map_us <- get_map(location = 'United States', zoom = 4)
 
 mapPoints_dep_airport <- ggmap(map_us) +
   geom_point(aes(x = lon, y = lat, size = freq), 
              data = delay_by_dep_airport, alpha = .5, color = my_colors[3]) + 
   guides(size = guide_legend(title = "Frequency of Delay")) + 
-  labs(title = 'Spacial Distribution of Arriving Flights in U.S') +
-  labs(title = 'Spacial Distribution of Departure Flights in U.S') +
+  labs(title = 'Spacial Distribution of Departure Airport in U.S') +
   yutongl1_315_theme
 ```
 
@@ -141,7 +139,7 @@ mapPoints_arr_airport <- ggmap(map_us) +
              data = delay_by_dep_airport, alpha = .5, color = my_colors[3]) + 
   scale_size_continuous(range = c(1, 10)) + 
   guides(size = guide_legend(title = "Frequency of Delay")) + 
-  labs(title = 'Spacial Distribution of Arriving Flights in U.S') +
+  labs(title = 'Spacial Distribution of Arriving Airport in U.S') +
   yutongl1_315_theme
   
 
@@ -150,4 +148,66 @@ grid.arrange(mapPoints_dep_airport, mapPoints_arr_airport, nrow = 2)
 ```
 
 
-Duration 
+```{r}
+# Deal with imbalanced data 
+library(ROSE)
+flights2015_over <- ovun.sample(DEP_DEL15 ~ ., data = flights2015_mod_v2, method = "both", N = 60000)$data
+flights2015_over <- flights2015_over[, -c(1,6, 10,11)]
+
+
+
+#Make test set
+set.seed(4)
+idx = sample(1:nrow(flights2015_over),20000)
+testing = flights2015_over[idx,]
+training = flights2015_over[-idx,]
+```
+
+
+```{r}
+# Deal with imbalanced data 
+library(ROSE)
+flights2015_over <- ovun.sample(DEP_DEL15 ~ ., data = flights2015_mod_v2, method = "both", N = 60000)$data
+flights2015_over <- flights2015_over[, -c(1,6, 10,11)]
+
+
+
+#Make test set
+set.seed(4)
+idx = sample(1:nrow(flights2015_over),20000)
+testing = flights2015_over[idx,]
+training = flights2015_over[-idx,]
+```
+
+```{r}
+# Logistic Regression 
+
+# Logistic Lasso 
+```
+
+
+
+```{r}
+library(randomForest)
+# Problem of TAIL_NUM and FL_NUM categories levels > 53
+forest = randomForest(DEP_DEL15 ~., data = training, ntree = 500, na.action = na.pass)
+
+yhat_test = predict(forest,newdata = testing)
+yhat_train = predict(forest, newdata = training)
+
+test_err = mean(yhat_test!=testing$DEP_DEL15)
+train_err = mean(yhat_test!=training$DEP_DEL15)
+oob_err = rev(forest$mse)[1]
+
+importance(forest)
+varImpPlot(forest)
+
+# Deal with missing values
+
+summary(flights2015_over)
+```
+
+```{r}
+# Additive Model
+
+```
