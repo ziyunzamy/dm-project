@@ -83,6 +83,11 @@ flights16_v1 <- left_join(flights16_g, delays_by_days_16_3,
                  by = c("FL_DATE" = "FL_DATE", 
                         "ORIGIN_AIRPORT_ID" = "ORIGIN_AIRPORT_ID"))
 flights16_v1 <- flights16_v1[, -c(66:67)]
+### add to 2016 visible data set ###
+flights16_v_v1 <- left_join(flights16_v, delays_by_days_16_3, 
+                 by = c("FL_DATE" = "FL_DATE", 
+                        "ORIGIN_AIRPORT_ID" = "ORIGIN_AIRPORT_ID"))
+flights16_v_v1 <- flights16_v_v1[, -c(66:67)]
 ```
 
 ```{r}
@@ -106,6 +111,11 @@ flights16_v2 <- left_join(flights16_v1, delays_by_des_16_3,
                  by = c("FL_DATE" = "FL_DATE", 
                         "DEST_AIRPORT_ID" = "DEST_AIRPORT_ID"))
 flights16_v2 <- flights16_v2[, -c(68:69)]
+### add to 2016 visible data set ###
+flights16_v_v2 <- left_join(flights16_v_v1, delays_by_des_16_3, 
+                 by = c("FL_DATE" = "FL_DATE", 
+                        "DEST_AIRPORT_ID" = "DEST_AIRPORT_ID"))
+flights16_v_v2 <- flights16_v_v2[, -c(68:69)]
 ```
 
 ```{r}
@@ -160,6 +170,48 @@ InputDays_16 <- function(month,day){
 flights16_v2$HDAYS <- mapply(InputDays_16, 
                              flights16_v2$MONTH, 
                              flights16_v2$DAY_OF_MONTH)
+
+### add to 2016 visible data set ###
+datesOfYear_16_v <- unique(flights16_v_v2[,3:4])
+datesOfYear_16_v$HDAYS <- mapply(DaysToHoliday_16, datesOfYear_16_v$MONTH,
+                            datesOfYear_16_v$DAY_OF_MONTH) 
+InputDays_v_16 <- function(month,day){
+    finalDays <- datesOfYear_16_v$HDAYS[datesOfYear_16_v$MONTH == month & datesOfYear_16_v$DAY_OF_MONTH == day] # Find which row to get
+    return(finalDays)
+}
+flights16_v_v2$HDAYS <- mapply(InputDays_v_16, 
+                             flights16_v_v2$MONTH, 
+                             flights16_v_v2$DAY_OF_MONTH)
+```
+
+
+
+```{r}
+# weekday vs. weekend
+flights2015_mod_v2$WEEKEND <- ifelse(flights2015_mod_v2$DAY_OF_WEEK>5, 1,0)
+flights16_v2$WEEKEND <- ifelse(flights16_v2$DAY_OF_WEEK>5, 1,0)
+flights16_v_v2$WEEKEND <- ifelse(flights16_v_v2$DAY_OF_WEEK>5, 1,0)
+# season 
+Season <- function(month){
+  if (month > 2 & month < 6 ){
+    return(1)
+  }
+  else if (month > 5 & month < 9){
+    return(2)
+  }
+  else if (month > 8 & month < 12){
+    return(3)
+   }
+  else{
+    return(4)
+  }
+}
+flights2015_mod_v2$SEASON =  mapply(Season, 
+                             flights2015_mod_v2$MONTH)
+flights16_v2$SEASON =  mapply(Season, 
+                             flights16_v2$MONTH)
+flights16_v_v2$SEASON =  mapply(Season, 
+                             flights16_v_v2$MONTH)
 ```
 
 
