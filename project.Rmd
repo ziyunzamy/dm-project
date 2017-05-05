@@ -7,6 +7,10 @@ output: pdf_document
 
 ```{r}
 rm(list=ls())
+library(tidyverse)
+library(devtools)
+
+
 flights15 <- read.csv("flights2015.csv")
 flights2015_mod = flights15[, -c(31:33, 35:40, 42:50, 52:53, 57:64)]
 ```
@@ -56,6 +60,7 @@ flights2015_mod_v2 <- left_join(flights2015_mod_v1, delays_by_des_3,
                         "DEST_AIRPORT_ID" = "DEST_AIRPORT_ID"))
 ### get rid of useless variables ###
 flights2015_mod_v2 <- flights2015_mod_v2[, -c(40:41)]
+flights2015_mod_v2$DEP_DEL15 <- factor(flights2015_mod_v2$DEP_DEL15)
 ```
 
 
@@ -111,6 +116,7 @@ flights16_v2 <- left_join(flights16_v1, delays_by_des_16_3,
                  by = c("FL_DATE" = "FL_DATE", 
                         "DEST_AIRPORT_ID" = "DEST_AIRPORT_ID"))
 flights16_v2 <- flights16_v2[, -c(68:69)]
+
 ### add to 2016 visible data set ###
 flights16_v_v2 <- left_join(flights16_v_v1, delays_by_des_16_3, 
                  by = c("FL_DATE" = "FL_DATE", 
@@ -212,6 +218,7 @@ flights16_v2$SEASON =  mapply(Season,
                              flights16_v2$MONTH)
 flights16_v_v2$SEASON =  mapply(Season, 
                              flights16_v_v2$MONTH)
+
 ```
 
 
@@ -228,3 +235,54 @@ flights16_v_v2$SEASON =  mapply(Season,
 # "WN","Southwest Airlines Co."
 ```
 
+
+```{r}
+# Deal with imbalanced data 
+library(ROSE)
+flights2015_over <- ovun.sample(DEP_DEL15 ~ ., data = flights2015_mod_v2, method = "both", N = 60000)$data
+flights2015_over <- flights2015_over[, -c(1,6, 10,11)]
+
+
+
+#Make test set
+set.seed(4)
+idx = sample(1:nrow(flights2015_over),20000)
+testing = flights2015_over[idx,]
+training = flights2015_over[-idx,]
+```
+
+```{r}
+# Logistic Regression 
+
+# Logistic Lasso 
+```
+
+
+
+```{r}
+library(randomForest)
+# Problem of TAIL_NUM and FL_NUM categories levels > 53
+forest = randomForest(DEP_DEL15 ~., data = training, ntree = 500, na.action = na.omit)
+
+yhat_test = predict(forest,newdata = testing)
+yhat_train = predict(forest, newdata = training)
+
+test_err = mean(yhat_test != testing$DEP_DEL15)
+train_err = mean(yhat_train != training$DEP_DEL15)
+# oob_err = rev(forest$mse)[1]
+
+
+
+
+importance(forest)
+varImpPlot(forest)
+
+# Deal with missing values
+
+summary(flights2015_over)
+```
+
+```{r}
+# Additive Model
+
+```
