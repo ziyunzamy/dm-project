@@ -67,8 +67,9 @@ flights2015_mod_v2$DEP_DEL15 <- factor(flights2015_mod_v2$DEP_DEL15)
 
 ```{r}
 #### ORIGIN airport delays ####
-flights16_v <- read.csv("flights2016_visible.csv")
-flights16_g <- read.csv("flights2016_guess.csv")
+flights16_v <- read.csv("flights2016_visible.csv")[, -c(31:33, 35:40, 42:50, 52:53, 57:64)]
+flights16_g <- read.csv("flights2016_guess.csv")[, -c(31:33, 35:40, 42:50, 52:53, 57:64)]
+
 ### filter our delayed flights ###
 flights16_v_delay <- flights16_v[which(flights16_v$DEP_DEL15==1),]
 ### group by days ###
@@ -87,12 +88,12 @@ delays_by_days_16_3 <- mutate(delays_by_days_16_3,
 flights16_v1 <- left_join(flights16_g, delays_by_days_16_3, 
                  by = c("FL_DATE" = "FL_DATE", 
                         "ORIGIN_AIRPORT_ID" = "ORIGIN_AIRPORT_ID"))
-flights16_v1 <- flights16_v1[, -c(66:67)]
+flights16_v1 <- flights16_v1[, -c(38:39)]
 ### add to 2016 visible data set ###
 flights16_v_v1 <- left_join(flights16_v, delays_by_days_16_3, 
                  by = c("FL_DATE" = "FL_DATE", 
                         "ORIGIN_AIRPORT_ID" = "ORIGIN_AIRPORT_ID"))
-flights16_v_v1 <- flights16_v_v1[, -c(66:67)]
+flights16_v_v1 <- flights16_v_v1[, -c(38:39)]
 ```
 
 ```{r}
@@ -115,13 +116,13 @@ delays_by_des_16_3 <- mutate(delays_by_des_16_3,
 flights16_v2 <- left_join(flights16_v1, delays_by_des_16_3, 
                  by = c("FL_DATE" = "FL_DATE", 
                         "DEST_AIRPORT_ID" = "DEST_AIRPORT_ID"))
-flights16_v2 <- flights16_v2[, -c(68:69)]
+flights16_v2 <- flights16_v2[, -c(40:41)]
 
 ### add to 2016 visible data set ###
 flights16_v_v2 <- left_join(flights16_v_v1, delays_by_des_16_3, 
                  by = c("FL_DATE" = "FL_DATE", 
                         "DEST_AIRPORT_ID" = "DEST_AIRPORT_ID"))
-flights16_v_v2 <- flights16_v_v2[, -c(68:69)]
+flights16_v_v2 <- flights16_v_v2[, -c(40:41)]
 ```
 
 ```{r}
@@ -238,11 +239,18 @@ flights16_v_v2$SEASON =  mapply(Season,
 
 ```{r}
 # Deal with imbalanced data 
-library(ROSE)
-flights2015_over <- ovun.sample(DEP_DEL15 ~ ., data = flights2015_mod_v2, method = "both", N = 60000)$data
-flights2015_over <- flights2015_over[, -c(1,6, 10,11)]
+flights2015_mod_v2$delays.x[is.na(flights2015_mod_v2$delays.x)] <- -1
+flights2015_mod_v2$delays_2[is.na(flights2015_mod_v2$delays_2)] <- -1
 
 
+
+#library(ROSE)
+#flights2015_over <- ovun.sample(DEP_DEL15 ~ ., data = flights2015_mod_v2, method = "both", N = 60000)$data
+# Problem of TAIL_NUM and FL_NUM categories levels > 53
+#flights2015_over <- flights2015_over[, -c(1,6, 10,11)]
+
+flights2015_over <- flights2015_mod_v2[, -c(1,6, 10,11)]
+flights2015_over = flights2015_over[-which(is.na(flights2015_over$DEP_DEL15)),]
 
 #Make test set
 set.seed(4)
@@ -261,26 +269,63 @@ training = flights2015_over[-idx,]
 
 ```{r}
 library(randomForest)
-# Problem of TAIL_NUM and FL_NUM categories levels > 53
-forest = randomForest(DEP_DEL15 ~., data = training, ntree = 500, na.action = na.omit)
 
+# First RF. Fit on all data
+forest = randomForest(DEP_DEL15 ~., data = training, ntree = 500, na.action = na.omit)
+# Predictions on test/training in 2015 data set. 
 yhat_test = predict(forest,newdata = testing)
 yhat_train = predict(forest, newdata = training)
-
+# Test error & Traning Error 
 test_err = mean(yhat_test != testing$DEP_DEL15)
 train_err = mean(yhat_train != training$DEP_DEL15)
-# oob_err = rev(forest$mse)[1]
-
-
-
-
+# See Variable Importance
 importance(forest)
 varImpPlot(forest)
 
-# Deal with missing values
-
-summary(flights2015_over)
 ```
+
+
+```{r}
+# Fit RF with less variables based on varible importance
+forest_sel= randomForest(DEP_DEL15 ~ CRS_DEP_TIME + CRS_ARR_TIME + delays.x + delays_2 + HDAYS + DAY_OF_MONTH +
+                           SEASON + delays_des.x + delays_des_2 + CRS_ELAPSED_TIME + 
+                           DAY_OF_WEEK + QUARTER + MONTH, 
+                         data = training, ntree = 500, na.action = na.omit)
+
+yhat_test_sel = predict(forest_sel,newdata = testing)
+yhat_train_sel = predict(forest_sel, newdata = training)
+
+test_err_sel = mean(yhat_test_sel != testing$DEP_DEL15)
+train_err_sel = mean(yhat_train_sel != training$DEP_DEL15)
+
+```
+
+
+
+```{r}
+# Test Random Forest on 2016
+flights16_v_final = flights16_v_v2[, -c(1,6, 10,11)]
+
+flights16_v_final = flights16_v_final[-which(is.na(flights16_v_final$DEP_DEL15)),]
+
+flights16_v_final$delays.x[is.na(flights16_v_final$delays.x)] <- -1
+flights16_v_final$delays_2[is.na(flights16_v_final$delays_2)] <- -1
+flights16_v_final$delays_des.x[is.na(flights16_v_final$delays_des.x)] <- -1
+flights16_v_final$delays_des_2[is.na(flights16_v_final$delays_des_2)] <- -1
+
+
+
+#flights16_v_final$UNIQUE_CARRIER <- factor(flights16_v_final$UNIQUE_CARRIER, 
+#                                           levels = levels(flights2015_over$UNIQUE_CARRIER))
+#flights16_v_final$CARRIER <- factor(flights16_v_final$CARRIER, 
+#                                    levels = levels(flights2015_over$CARRIER))
+
+
+ytest_16_test = predict(forest_sel,newdata = flights16_v_final)
+test_err_sel_16 = mean(ytest_16_test != flights16_v_final$DEP_DEL15)
+
+```
+
 
 ```{r}
 # Additive Model
