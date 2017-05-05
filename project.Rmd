@@ -181,21 +181,6 @@ flights16_v2$HDAYS <- mapply(InputDays_16,
 # "WN","Southwest Airlines Co."
 ```
 
-```{r}
-# Deal with imbalanced data 
-library(ROSE)
-flights2015_over <- ovun.sample(DEP_DEL15 ~ ., data = flights2015_mod_v2, method = "both", N = 60000)$data
-flights2015_over <- flights2015_over[, -c(1,6, 10,11)]
-
-
-
-#Make test set
-set.seed(4)
-idx = sample(1:nrow(flights2015_over),20000)
-testing = flights2015_over[idx,]
-training = flights2015_over[-idx,]
-```
-
 
 ```{r}
 # Deal with imbalanced data 
