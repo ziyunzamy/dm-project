@@ -1,0 +1,75 @@
+---
+title: "Data Mining Project"
+author: "Amy Zheng"
+date: "4/23/2017"
+output: pdf_document
+---
+
+```{r}
+rm(list=ls())
+library(tidyverse)
+library(devtools)
+
+
+flights2015_over <- read.csv("flights2015_over.csv")
+flights2015_over$DEP_DEL15 <- factor(flights2015_over$DEP_DEL15)
+flights16_v_final <- read.csv("flights16_v_over.csv")
+flights16_g <- read.csv("flights16_g_over.csv")
+
+```
+
+
+```{r}
+library(ROSE)
+# Make test set
+set.seed(4)
+idx = sample(1:nrow(flights2015_over),20000)
+testing = flights2015_over[idx,]
+training = flights2015_over[-idx,]
+
+training <- ovun.sample(DEP_DEL15 ~ ., data = training, method = "both", N = 30000)$data
+```
+
+
+```{r}
+
+training$delays.x <- as.numeric(training$delays.x)
+training$delays_2 <- as.numeric(training$delays_2)
+training$DEP_TIME <- as.numeric(training$DEP_TIME)
+training$ARR_TIME <- as.numeric(training$ARR_TIME)
+training$HDAYS <- as.numeric(training$HDAYS)
+training$CRS_ELAPSED_TIME  <- as.numeric(training$CRS_ELAPSED_TIME)
+training$DISTANCE  <- as.numeric(training$DISTANCE)
+
+
+
+train_x <- training[, c('delays.x','delays_2', 'DEP_TIME', 'ARR_TIME', 'HDAYS', 
+                        'CRS_ELAPSED_TIME', 'DISTANCE')]
+train_y <- as.numeric(levels(training[, c('DEP_DEL15')]))[training[, c('DEP_DEL15')]]
+
+
+testing$delays.x <- as.numeric(testing$delays.x)
+testing$delays_2 <- as.numeric(testing$delays_2)
+testing$DEP_TIME <- as.numeric(testing$DEP_TIME)
+testing$ARR_TIME <- as.numeric(testing$ARR_TIME)
+testing$HDAYS <- as.numeric(testing$HDAYS)
+testing$CRS_ELAPSED_TIME  <- as.numeric(testing$CRS_ELAPSED_TIME)
+testing$DISTANCE  <- as.numeric(testing$DISTANCE)
+
+
+
+test_x <- testing[, c('delays.x','delays_2', 'DEP_TIME', 'ARR_TIME', 'HDAYS', 
+                        'CRS_ELAPSED_TIME', 'DISTANCE')]
+test_y <- as.numeric(levels(training[, c('DEP_DEL15')]))[training[, c('DEP_DEL15')]]
+
+
+
+library(xgboost)
+boosting <- xgboost(data = data.matrix(train_x), label = train_y, max.depth = 10, 
+                    eta = 0.3, nround = 5, objective = "binary:logistic")
+
+y_pred_test_num <- predict(boosting, data.matrix(test_x))
+y_pred_test <- as.numeric(y_pred_test_num  > 0.5) 
+
+test_err <-  mean(y_pred_test != testing$DEP_DEL15)
+```

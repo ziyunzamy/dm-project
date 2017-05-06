@@ -12,19 +12,59 @@ library(devtools)
 
 
 flights2015_over <- read.csv("flights2015_over.csv")
-flights2015_over$DEP_DEL15 <- factor(flights2015_over$DEP_DEL15)
 flights16_v_final <- read.csv("flights16_v_over.csv")
 flights16_g <- read.csv("flights16_g_over.csv")
 
 ```
 
+```{r}
+flights2015_over$DEP_DEL15 <- factor(flights2015_over$DEP_DEL15)
+flights2015_over$WEEKEND <- factor(flights2015_over$WEEKEND)
+flights2015_over$MONTH <- factor(flights2015_over$MONTH)
+flights2015_over$SEASON <- factor(flights2015_over$SEASON)
+flights2015_over$DAY_OF_MONTH <- factor(flights2015_over$DAY_OF_MONTH)
+flights2015_over$DAY_OF_WEEK <- factor(flights2015_over$DAY_OF_WEEK)
+flights2015_over$DISTANCE_GROUP <- factor(flights2015_over$DISTANCE_GROUP)
+flights2015_over$QUARTER <- factor(flights2015_over$QUARTER)
+flights2015_over$ARR_TIME <- factor(flights2015_over$ARR_TIME)
+flights2015_over$DEP_TIME <- factor(flights2015_over$DEP_TIME)
+
+
+
+flights16_v_final$DEP_DEL15 <- factor(flights16_v_final$DEP_DEL15)
+flights16_v_final$WEEKEND <- factor(flights16_v_final$WEEKEND)
+flights16_v_final$MONTH <- factor(flights16_v_final$MONTH)
+flights16_v_final$SEASON <- factor(flights16_v_final$SEASON)
+flights16_v_final$DAY_OF_MONTH <- factor(flights16_v_final$DAY_OF_MONTH)
+flights16_v_final$DAY_OF_WEEK <- factor(flights16_v_final$DAY_OF_WEEK)
+flights16_v_final$DISTANCE_GROUP <- factor(flights16_v_final$DISTANCE_GROUP)
+flights16_v_final$QUARTER <- factor(flights16_v_final$QUARTER)
+flights16_v_final$ARR_TIME <- factor(flights16_v_final$ARR_TIME)
+flights16_v_final$DEP_TIME <- factor(flights16_v_final$DEP_TIME)
+
+
+flights16_g$DEP_DEL15 <- factor(flights16_g$DEP_DEL15)
+flights16_g$WEEKEND <- factor(flights16_g$WEEKEND)
+flights16_g$MONTH <- factor(flights16_g$MONTH)
+flights16_g$SEASON <- factor(flights16_g$SEASON)
+flights16_g$DAY_OF_MONTH <- factor(flights16_g$DAY_OF_MONTH)
+flights16_g$DAY_OF_WEEK <- factor(flights16_g$DAY_OF_WEEK)
+flights16_g$DISTANCE_GROUP <- factor(flights16_g$DISTANCE_GROUP)
+flights16_g$QUARTER <- factor(flights16_g$QUARTER)
+flights16_g$ARR_TIME <- factor(flights16_g$ARR_TIME)
+flights16_g$DEP_TIME <- factor(flights16_g$DEP_TIME)
+```
 
 ```{r}
+library(ROSE)
+
 #Make test set
 set.seed(4)
-idx = sample(1:nrow(flights2015_over),20000)
+idx = sample(1:nrow(flights2015_over), 15000)
 testing = flights2015_over[idx,]
 training = flights2015_over[-idx,]
+
+training <- ovun.sample(DEP_DEL15 ~ ., data = training, method = "over", N = 40000)$data
 ```
 
 
@@ -33,26 +73,27 @@ training = flights2015_over[-idx,]
 library(randomForest)
 
 # First RF. Fit on all data
-forest = randomForest(DEP_DEL15 ~., data = training, ntree = 500, na.action = na.omit)
+# forest = randomForest(DEP_DEL15 ~., data = training, ntree = 500, na.action = na.omit)
 # Predictions on test/training in 2015 data set. 
-yhat_test = predict(forest,newdata = testing)
-yhat_train = predict(forest, newdata = training)
+# yhat_test = predict(forest,newdata = testing)
+# yhat_train = predict(forest, newdata = training)
 # Test error & Traning Error 
-test_err = mean(yhat_test != testing$DEP_DEL15)
-train_err = mean(yhat_train != training$DEP_DEL15)
+# test_err = mean(yhat_test != testing$DEP_DEL15)
+# train_err = mean(yhat_train != training$DEP_DEL15)
 # See Variable Importance
-importance(forest)
-varImpPlot(forest)
+# importance(forest)
+# varImpPlot(forest)
 
 ```
 
 
+
 ```{r}
 # Fit RF with less variables based on varible importance
-forest_sel= randomForest(DEP_DEL15 ~ CRS_DEP_TIME + CRS_ARR_TIME + delays.x + delays_2 + HDAYS + DAY_OF_MONTH +
+forest_sel= randomForest(DEP_DEL15 ~ DEP_TIME + ARR_TIME + delays.x + delays_2 + HDAYS + DAY_OF_MONTH +
                            SEASON + delays_des.x + delays_des_2 + CRS_ELAPSED_TIME + 
-                           DAY_OF_WEEK + QUARTER + MONTH, 
-                         data = training, ntree = 500, na.action = na.omit)
+                           DAY_OF_WEEK +  MONTH + DISTANCE_GROUP + DISTANCE, 
+                         data = training, ntree = 1000, na.action = na.omit)
 
 yhat_test_sel = predict(forest_sel,newdata = testing)
 yhat_train_sel = predict(forest_sel, newdata = training)
@@ -72,4 +113,8 @@ test_err_sel_16 = mean(ytest_16_test != flights16_v_final$DEP_DEL15)
 
 ```{r}
 y_16_guess = predict(forest_sel, newdata = flights16_g)
+summary(y_16_guess)
+
+table(yhat_test_sel, testing$DEP_DEL15)
+summary(testing$DEP_DEL15)
 ```
